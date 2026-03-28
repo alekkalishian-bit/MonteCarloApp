@@ -277,7 +277,7 @@ def main() -> None:
             st.text(traceback.format_exc())
             return
     else:
-        st.info("👈 Please enter a valid stock ticker (e.g., AAPL, VOO, NVDA) to run the institutional stress-test.")
+        st.info("👈 Please enter a valid stock ticker (e.g., VOO, MSFT, AAPL) to run the institutional stress-test.")
 
 
 if __name__ == "__main__":
