@@ -9,6 +9,7 @@ import streamlit as st
 import yfinance as yf
 
 
+@st.cache_data(ttl=3600)
 def fetch_adj_close(ticker: str) -> pd.Series:
     """Fetch 10 years of daily adjusted close prices for the given ticker."""
     if not ticker or not isinstance(ticker, str):
@@ -183,9 +184,15 @@ def main() -> None:
             with st.spinner("Fetching historical data..."):
                 historical_prices = fetch_adj_close(ticker)
 
+            beta = 1.0
             if use_capm:
-                ticker_obj = yf.Ticker(ticker)
-                beta = ticker_obj.info.get('beta', 1.0)
+                try:
+                    ticker_obj = yf.Ticker(ticker)
+                    beta = float(ticker_obj.info.get('beta', 1.0))
+                except Exception:
+                    beta = 1.0
+                    st.warning("⚠️ Yahoo Finance rate limit reached. Defaulting to a Market Beta of 1.0 for CAPM.")
+
                 risk_free_rate = 0.042
                 market_risk_premium = 0.055
                 capm_return = risk_free_rate + beta * market_risk_premium
