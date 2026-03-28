@@ -1,9 +1,13 @@
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import traceback
+
 @st.cache_data(ttl=3600)
 def calculate_beta(ticker: str, market_ticker: str = "^GSPC", years: int = 5) -> float:
     """Calculate Beta of a stock relative to the market using daily returns over the past N years."""
-    import yfinance as yf
-    import pandas as pd
-    import numpy as np
     
     # Download historical daily close prices
     data = yf.download([ticker, market_ticker], period=f"{years}y", progress=False, auto_adjust=False)["Adj Close"]
