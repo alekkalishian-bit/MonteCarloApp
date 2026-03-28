@@ -1,3 +1,34 @@
+@st.cache_data(ttl=3600)
+def calculate_beta(ticker: str, market_ticker: str = "^GSPC", years: int = 5) -> float:
+    """Calculate Beta of a stock relative to the market using daily returns over the past N years."""
+    import yfinance as yf
+    import pandas as pd
+    import numpy as np
+    
+    # Download historical daily close prices
+    data = yf.download([ticker, market_ticker], period=f"{years}y", progress=False, auto_adjust=False)["Adj Close"]
+    if isinstance(data, pd.Series):
+        # If only one ticker is valid, yfinance returns a Series
+        raise ValueError("Could not download both tickers for beta calculation.")
+    data = data.dropna()
+    if ticker not in data.columns or market_ticker not in data.columns:
+        raise ValueError("Missing data for one or both tickers for beta calculation.")
+    
+    # Calculate daily returns
+    stock_returns = data[ticker].pct_change().dropna()
+    market_returns = data[market_ticker].pct_change().dropna()
+    # Align on dates
+    returns = pd.concat([stock_returns, market_returns], axis=1, join="inner")
+    returns.columns = ["stock", "market"]
+    returns = returns.dropna()
+    if len(returns) < 252:
+        raise ValueError("Not enough data to calculate beta.")
+    
+    # Calculate covariance and variance
+    cov = np.cov(returns["stock"], returns["market"])[0, 1]
+    var = np.var(returns["market"])
+    beta = cov / var if var != 0 else 1.0
+    return float(beta)
 import traceback
 
 typing_imports = """
@@ -184,23 +215,16 @@ def main() -> None:
             with st.spinner("Fetching historical data..."):
                 historical_prices = fetch_adj_close(ticker)
 
-            beta = 1.0
             if use_capm:
-                try:
-                    ticker_obj = yf.Ticker(ticker)
-                    beta = float(ticker_obj.info.get('beta', 1.0))
-                except Exception:
-                    beta = 1.0
-                    st.warning("⚠️ Yahoo Finance rate limit reached. Defaulting to a Market Beta of 1.0 for CAPM.")
-
+                with st.spinner("Calculating Beta from historical returns..."):
+                    beta = calculate_beta(ticker, market_ticker="^GSPC", years=5)
                 risk_free_rate = 0.042
                 market_risk_premium = 0.055
                 capm_return = risk_free_rate + beta * market_risk_premium
                 expected_annual_return = capm_return
-                st.info(f"CAPM Expected Return: {capm_return:.2%}")
+                st.info(f"CAPM Expected Return: {capm_return:.2%} (Beta: {beta:.2f})")
 
             s0, drift, sigma = compute_gbm_params(historical_prices, expected_annual_return)
-
             st.metric("Current Price", f"${s0:,.2f}")
 
             with st.spinner("Running Monte Carlo simulations (10,000 runs)..."):
