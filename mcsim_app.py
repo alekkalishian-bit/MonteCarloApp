@@ -73,10 +73,19 @@ def fetch_adj_close(ticker: str) -> pd.Series:
 def compute_gbm_params(price_series: pd.Series, expected_annual_return: float) -> tuple[float, float, float]:
     """Compute daily returns, drift, and volatility for GBM."""
     log_ret = np.log(price_series / price_series.shift(1)).dropna()
-    sigma = float(log_ret.std(ddof=1))
+    std_val = log_ret.std(ddof=1)
+    if isinstance(std_val, pd.Series):
+        sigma = float(std_val.iloc[0])
+    else:
+        sigma = float(std_val)
     historical_annual_volatility = sigma * np.sqrt(252)
     daily_drift = (expected_annual_return - 0.5 * historical_annual_volatility**2) / 252
-    return float(price_series.iloc[-1]), daily_drift, sigma
+    last_price = price_series.iloc[-1]
+    if isinstance(last_price, pd.Series):
+        s0 = float(last_price.iloc[0])
+    else:
+        s0 = float(last_price)
+    return s0, daily_drift, sigma
 
 
 def simulate_gbm(s0: float, drift: float, sigma: float, days: int, n_sims: int, enable_jumps: bool = False, lambda_j: float = 1.0, mu_j: float = -0.05, sigma_j: float = 0.10) -> np.ndarray:
